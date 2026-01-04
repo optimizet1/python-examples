@@ -1,0 +1,6 @@
+### call endpoint
+GET http://localhost:7071/api/token_balances?date=2023-12-31
+
+### @name Get Token Balances (local)
+GET {{host}}/api/token_balances?date=2023-12-31
+x-functions-key: {{function_key}}
