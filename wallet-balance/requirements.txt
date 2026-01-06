@@ -1,5 +1,5 @@
-moralis @ git+https://github.com/MoralisWeb3/Moralis-Python-SDK.git
+moralis
 web3
-python-dotenv
 azure-functions
 requests
+pytz

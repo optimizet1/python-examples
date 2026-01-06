@@ -18,6 +18,9 @@ source .venv/bin/activate
 
 ## 3. Install Dependencies
 
+Upgrade pip version
+python.exe -m pip install --upgrade pip
+
 pip install -r requirements.txt
 
 ## 4. Install REST Client Extension in Visual Studio Code 
@@ -39,4 +42,8 @@ This doesn't use Blob storage. If you need it and run locally install Azurite
 
 npm install -g azurite
 azurite
+
+# in requirements.txt
+Optinally to get latest Moralis SDK
+moralis @ git+https://github.com/MoralisWeb3/Moralis-Python-SDK.git
 

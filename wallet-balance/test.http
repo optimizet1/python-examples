@@ -1,6 +1,11 @@
-### call endpoint
-GET http://localhost:7071/api/token_balances?date=2023-12-31
+### call endpoint valid date
+GET http://localhost:7071/api/token_balances?date=2025-12-12
+Content-Type: application/json
 
-### @name Get Token Balances (local)
-GET {{host}}/api/token_balances?date=2023-12-31
-x-functions-key: {{function_key}}
+### call endpoint - needs to default to using env variable for block_to
+GET http://localhost:7071/api/token_balances
+Content-Type: application/json
+
+### call endpoint - invalid date only
+GET http://localhost:7071/api/token_balances?date=2025-10-15
+Content-Type: application/json

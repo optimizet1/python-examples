@@ -2,6 +2,9 @@ import datetime
 from web3 import Web3
 from moralis import evm_api
 from settings import MORALIS_API_KEY, PROVIDERS, CHAIN_CONFIG
+import re
+import os
+from common import get_boolean_from_value, is_date_older_than_cutoff
 
 ERC20_ABI = [
     {
@@ -32,6 +35,16 @@ def get_block_by_date(date_str: str, chain: str) -> int:
     provider = PROVIDERS[chain]["provider"]
 
     if provider == "moralis":
+
+        use_block_env_var = get_boolean_from_value(os.environ.get('USE_BLOCK_FROM_ENV', 'false'))
+
+        if use_block_env_var:
+            block_num = int(os.environ.get('MORALIS_BLOCK_NUMBER', 0))
+
+            if block_num > 71000000:
+                return block_num
+
+
         result = evm_api.block.get_date_to_block(
             api_key=MORALIS_API_KEY,
             params={
@@ -101,23 +114,48 @@ def get_all_balances_by_date(date: str):
         tokens = config["tokens"]
         provider = PROVIDERS[chain]["provider"]
 
-        try:
-            block = get_block_by_date(date, chain)
+        wallet = validate_eth_address(wallet)
+        if wallet:
 
-            if provider == "moralis":
-                balances = get_moralis_token_balances(wallet, tokens, chain, block)
-            elif provider == "alchemy":
-                w3 = Web3(Web3.HTTPProvider(PROVIDERS[chain]["alchemy_url"]))
-                balances = [
-                    get_alchemy_token_balance(w3, token, wallet, block)
-                    for token in tokens
-                ]
-            else:
-                balances = []
+            try:
+                block = get_block_by_date(date, chain)
 
-        except Exception as e:
-            balances = [{"error": str(e)}]
+                if provider == "moralis":
+                    balances = get_moralis_token_balances(wallet, tokens, chain, block)
+                elif provider == "alchemy":
+                    w3 = Web3(Web3.HTTPProvider(PROVIDERS[chain]["alchemy_url"]))
+                    balances = [
+                        get_alchemy_token_balance(w3, token, wallet, block)
+                        for token in tokens
+                    ]
+                else:
+                    balances = []
 
-        results[chain] = balances
+            except Exception as e:
+                balances = [{"error": str(e)}]
+
+            results[chain] = balances
 
     return results
+
+
+
+def validate_eth_address(address: str) -> str | None:
+    """
+    Validates an Ethereum (or EVM) address.
+    - Returns the checksummed address if valid
+    - Returns None if invalid
+    """
+    if not isinstance(address, str):
+        return None
+
+    if not address.startswith("0x") and not address.startswith("0X"):
+        address = "0x" + address
+
+    if not re.fullmatch(r"0x[a-fA-F0-9]{40}", address):
+        return None
+
+    if not Web3.is_address(address):
+        return None
+
+    return Web3.to_checksum_address(address)
