@@ -1,13 +1,16 @@
 import os
 
-MORALIS_API_KEY = os.environ["MORALIS_API_KEY"]
-ALCHEMY_ETH_URL = os.environ["ALCHEMY_ETH_URL"]
+def get_moralis_api_key():
+    return os.getenv('MORALIS_API_KEY', '')
+
+def get_alchemy_eth_url():
+    return os.getenv('ALCHEMY_ETH_URL', '')
 
 # Provider + Wallet Config (unchanged)
 PROVIDERS = {
     "eth": {
         "provider": "alchemy",
-        "alchemy_url": ALCHEMY_ETH_URL
+        "alchemy_url": get_alchemy_eth_url()
     },
     "bsc": {
         "provider": "moralis",

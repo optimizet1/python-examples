@@ -1,7 +1,7 @@
 import datetime
 from web3 import Web3
 from moralis import evm_api
-from settings import MORALIS_API_KEY, PROVIDERS, CHAIN_CONFIG
+from settings import get_moralis_api_key, PROVIDERS, CHAIN_CONFIG
 import re
 import os
 from common import get_boolean_from_value, is_date_older_than_cutoff
@@ -44,9 +44,9 @@ def get_block_by_date(date_str: str, chain: str) -> int:
             if block_num > 71000000:
                 return block_num
 
-
+        moralis_ak = get_moralis_api_key()
         result = evm_api.block.get_date_to_block(
-            api_key=MORALIS_API_KEY,
+            api_key=moralis_ak,
             params={
                 "chain": PROVIDERS[chain]["moralis_chain"],
                 "date": iso_timestamp
@@ -71,8 +71,10 @@ def get_block_by_date(date_str: str, chain: str) -> int:
 
 
 def get_moralis_token_balances(wallet: str, tokens: list[str], chain: str, block_number: int):
+    moralis_ak = get_moralis_api_key()
+
     result = evm_api.token.get_wallet_token_balances(
-        api_key=MORALIS_API_KEY,
+        api_key=moralis_ak,
         params={
             "chain": PROVIDERS[chain]["moralis_chain"],
             "address": wallet,

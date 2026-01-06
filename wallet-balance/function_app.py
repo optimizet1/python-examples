@@ -1,7 +1,7 @@
 import azure.functions as func
 import json
 from balance_logic import get_all_balances_by_date
-from common import get_boolean_from_value, is_date_older_than_cutoff, get_datetime_str_now_pt
+from common import is_date_older_than_cutoff, get_datetime_str_now_pt
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
