@@ -1,5 +1,4 @@
 .venv
-.vscode
 __azurite*.json
 local.settings.json
 __blobstorage__
