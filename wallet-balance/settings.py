@@ -111,3 +111,50 @@ QUICKNODE_PROVIDER = {
 #         "type": "function"
 #     }
 # ]
+
+
+
+# QUICKNODE config/settings
+
+
+from typing import Dict
+
+# -------------------------------
+# QuickNode RPC URLs
+# -------------------------------
+QUICKNODE_RPC = {
+    "eth": "https://YOUR-ETH-ENDPOINT.quiknode.pro/YOUR_KEY/",
+    "bsc": "https://YOUR-BSC-ENDPOINT.quiknode.pro/YOUR_KEY/",
+}
+
+# -------------------------------
+# Chain → Tokens
+# -------------------------------
+CHAIN_CONFIG = {
+    "eth": {
+        "tokens": [
+            "0xToken1ETH",
+            "0xToken2ETH",
+        ]
+    },
+    "bsc": {
+        "tokens": [
+            "0xToken1BSC",
+            "0xToken2BSC",
+        ]
+    }
+}
+
+# -------------------------------
+# Known block history
+# -------------------------------
+BLOCK_HISTORY: Dict[str, Dict[str, int]] = {
+    "bsc": {
+        "2026-01-01": 1111111,
+        "2026-01-02": 1111112,
+    },
+    "eth": {
+        "2026-01-01": 546111,
+        "2026-01-02": 547111,
+    }
+}
