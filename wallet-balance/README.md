@@ -47,3 +47,56 @@ azurite
 Optinally to get latest Moralis SDK
 moralis @ git+https://github.com/MoralisWeb3/Moralis-Python-SDK.git
 
+
+
+# Pricing
+
+First: the hard truth (important)
+
+There is no such thing as a truly block-exact price unless you:
+
+index DEX swaps yourself
+
+replay trades up to that exact block
+
+compute VWAP/last price manually
+
+Moralis (and CoinGecko, etc.) do not do this.
+
+What is possible — and industry-standard — is:
+
+Normalize price to the block’s timestamp
+by querying the price at that timestamp’s calendar date (or nearest time bucket)
+
+That’s what we’ll implement.
+
+Normalization strategy (best practice)
+Given:
+
+block_number
+
+chain
+
+token
+
+Steps:
+
+Get block timestamp from QuickNode
+
+Convert timestamp → UTC date
+
+Ask Moralis for price at that date
+
+Store:
+
+block
+
+timestamp
+
+date
+
+price
+
+normalization method
+
+This is what professional analytics pipelines do.

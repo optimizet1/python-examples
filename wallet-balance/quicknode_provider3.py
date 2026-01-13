@@ -411,3 +411,213 @@ def get_token_total_supply_human_at_date(
     decimals = get_token_decimals(chain, token) or 0
     return raw / (10 ** decimals)
 
+# ==================================================================
+# Putting it together
+# ===================================================================
+
+def get_all_token_total_supply_at_date(date_str: str) -> dict:
+    """
+    Returns totalSupply for every token in CHAIN_CONFIG at a given date.
+
+    Output shape:
+    {
+        "eth": {
+            "0xToken1ETH": 123456,
+            "0xToken2ETH": 789012,
+        },
+        "bsc": {
+            "0xToken1BSC": 555555,
+            "0xToken2BSC": 999999,
+        }
+    }
+    """
+    results = {}
+
+    for chain, cfg in CHAIN_CONFIG.items():
+        chain = chain.lower()
+        results[chain] = {}
+
+        for token in cfg.get("tokens", []):
+            supply = get_token_total_supply_at_date(
+                chain=chain,
+                token=token,
+                date_str=date_str,
+            )
+            results[chain][token] = supply
+
+    return results
+
+# ================================================================
+# Placeholder - QuickNode doesn't have pricing api
+
+def get_token_price_at_block(
+    chain: str,
+    token: str,
+    block: int
+) -> float | None:
+    """
+    Returns token price at a specific block.
+
+    NOTE:
+    - This is intentionally a pluggable hook.
+    - Implement via:
+        - DEX OHLCV index
+        - CoinGecko (date-based)
+        - Internal pricing DB
+    """
+    # TODO: implement real pricing source
+    return None
+
+def get_all_token_prices_at_date(date_str: str) -> dict:
+    """
+    Returns prices for every token in CHAIN_CONFIG at a given date.
+
+    Output shape:
+    {
+        "eth": {
+            "block": 19000000,
+            "prices": {
+                "0xToken1ETH": 1.23,
+                "0xToken2ETH": 0.045,
+            }
+        },
+        "bsc": {
+            "block": 35000000,
+            "prices": {
+                "0xToken1BSC": 0.98,
+                "0xToken2BSC": 0.0021,
+            }
+        }
+    }
+    """
+    results = {}
+
+    for chain, cfg in CHAIN_CONFIG.items():
+        chain = chain.lower()
+        block = get_block_by_date(chain, date_str)
+
+        prices = {}
+        for token in cfg.get("tokens", []):
+            price = get_token_price_at_block(
+                chain=chain,
+                token=token,
+                block=block,
+            )
+            prices[token] = price
+
+        results[chain] = {
+            "block": block,
+            "prices": prices,
+        }
+
+    return results
+
+# ======================================================
+# Moralis pricing helper
+MORALIS_CHAIN_MAP = {
+    "eth": "eth",
+    "bsc": "bsc",
+}
+
+from datetime import datetime, timezone
+
+def block_to_utc_date(chain: str, block: int) -> str:
+    """
+    Converts block number to YYYY-MM-DD (UTC)
+    """
+    w3 = get_web3(chain)
+    ts = w3.eth.get_block(block)["timestamp"]
+
+    return datetime.fromtimestamp(
+        ts, tz=timezone.utc
+    ).strftime("%Y-%m-%d")
+
+def get_token_price_at_block_moralis(
+    chain: str,
+    token: str,
+    block: int,
+    vs_currency: str = "usd"
+) -> dict:
+    """
+    Returns a price normalized to the block timestamp.
+
+    Output includes normalization metadata.
+    """
+    date_str = block_to_utc_date(chain, block)
+
+    price = get_token_price_at_date_moralis(
+        chain=chain,
+        token=token,
+        date_str=date_str,
+        vs_currency=vs_currency,
+    )
+
+    return {
+        "price": price,
+        "normalized_date": date_str,
+        "normalization": "moralis_daily_price",
+        "block": block,
+    }
+
+def get_all_token_prices_normalized_to_block(
+    date_str: str,
+    vs_currency: str = "usd"
+) -> dict:
+    """
+    Returns Moralis prices normalized to the block timestamp
+    for each chain/token.
+    """
+    results = {}
+
+    for chain, cfg in CHAIN_CONFIG.items():
+        block = get_block_by_date(chain, date_str)
+
+        prices = {}
+        for token in cfg.get("tokens", []):
+            prices[token] = get_token_price_at_block_moralis(
+                chain=chain,
+                token=token,
+                block=block,
+                vs_currency=vs_currency,
+            )
+
+        results[chain] = {
+            "block": block,
+            "prices": prices,
+        }
+
+    return results
+
+def get_token_price_at_date_moralis(
+    chain: str,
+    token: str,
+    date_str: str,
+    vs_currency: str = "usd"
+) -> float | None:
+    """
+    Returns token price (USD by default) at a given date using Moralis.
+
+    NOTE:
+    - Date-based, not block-exact
+    - Uses Moralis indexed DEX pricing
+    """
+    chain = chain.lower()
+    moralis_chain = MORALIS_CHAIN_MAP.get(chain)
+
+    if not moralis_chain:
+        raise ValueError(f"Unsupported chain for Moralis: {chain}")
+
+    try:
+        result = evm_api.token.get_token_price(
+            api_key=MORALIS_API_KEY,
+            params={
+                "chain": moralis_chain,
+                "address": token,
+                "to_date": date_str,
+                "exchange": "uniswapv2",  # optional but recommended
+                "vs_currency": vs_currency,
+            },
+        )
+        return float(result["usdPrice"])
+    except Exception:
+        return None
