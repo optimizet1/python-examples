@@ -865,3 +865,131 @@ def get_token_price_at_date_moralis(
         return float(result["usdPrice"])
     except Exception:
         return None
+
+
+#==============================================
+# Fixed execute_eth call for getting numbers vs symbols
+
+
+def int_to_bytes32_safe(x: int) -> bytes:
+    # minimal length (at least 1 byte)
+    n = max(1, (x.bit_length() + 7) // 8)
+    b = x.to_bytes(n, byteorder="big", signed=False)
+    # pad left to 32 or trim rightmost 32
+    return b.rjust(32, b"\x00")[-32:]
+
+def decode_bytes32_symbol(b32: bytes) -> str | None:
+    s = b32.rstrip(b"\x00").decode("utf-8", errors="ignore").strip()
+    return s or None
+
+
+import requests
+
+def execute_eth_call_raw(
+    rpc_url: str,
+    to_address: str,
+    data: str,
+    block: str | int = "latest",
+) -> bytes | None:
+    params = build_eth_call_params(to_address=to_address, data=data, block=block)
+    payload = build_json_rpc_payload(method="eth_call", params=params)
+
+    resp = requests.post(rpc_url, json=payload, timeout=30)
+    resp.raiseresp = resp.json()
+    if "error" in resp:
+        raise RuntimeError(resp["error"])
+
+    raw_hex = resp.get("result")
+    if raw_hex in (None, "0x"):
+        return None
+
+    # hex string -> bytes
+    return bytes.fromhex(raw_hex[2:])
+
+
+def execute_eth_call_uint(
+    rpc_url: str,
+    to_address: str,
+    data: str,
+    block: str | int = "latest",
+) -> int | None:
+    raw_hex_bytes = execute_eth_call_raw(rpc_url, to_address, data, block)
+    if raw_hex_bytes is None or len(raw_hex_bytes) == 0:
+        return None
+    return int.from_bytes(raw_hex_bytes, "big", signed=False)
+
+
+def decode_abi_string(ret: bytes) -> str | None:
+    """
+    Decode ABI-encoded string return data.
+    Layout: offset(32) | ... | length(32) | data(padded)
+    """
+    if ret is None or len(ret) < 64:
+        return None
+
+    # first 32 bytes = offset
+    offset = int.from_bytes(ret[0:32], "big")
+    if offset + 32 > len(ret):
+        return None
+
+    strlen = int.from_bytes(ret[offset:offset+32], "big")
+    start = offset + 32
+    end = start + strlen
+    if end > len(ret):
+        return None
+
+    s = ret[start:end].decode("utf-8", errors="ignore").strip()
+    return s or None
+
+
+def decode_symbol_return(ret: bytes) -> str | None:
+    if ret is None:
+        return None
+
+    # bytes32 returns often show up as exactly 32 bytes
+    if len(ret) == 32:
+        return decode_bytes32_symbol(ret)
+
+    # otherwise attempt ABI string decode
+    return decode_abi_string(ret)
+
+
+
+
+DECIMALS_SELECTOR = "0x313ce567"
+SYMBOL_SELECTOR   = "0x95d89b41"
+
+DECIMALS_CACHE: dict[str, dict[str, dict]] = {"eth": {}, "bsc": {}}
+
+def get_token_metadata(
+    rpc_url: str,
+    chain: str,
+    token_address: str,
+) -> dict | None:
+    chain = chain.lower()
+    token_key = token_address.lower()
+    DECIMALS_CACHE.setdefault(chain, {})
+
+    if token_key in DECIMALS_CACHE[chain]:
+        return DECIMALS_CACHE[chain][token_key]
+
+    decimals = execute_eth_call_uint(
+        rpc_url=rpc_url,
+        to_address=token_address,
+        data=DECIMALS_SELECTOR,
+        block="latest",
+    )
+    if decimals is None:
+        return None
+
+    sym_bytes = execute_eth_call_raw(
+        rpc_url=rpc_url,
+        to_address=token_address,
+        data=SYMBOL_SELECTOR,
+        block="latest",
+    )
+    symbol = decode_symbol_return(sym_bytes)
+
+    meta = {"decimals": decimals, "symbol": symbol}
+    DECIMALS_CACHE[chain][token_key] = meta
+    return meta
