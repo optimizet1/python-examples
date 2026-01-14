@@ -891,20 +891,34 @@ def execute_eth_call_raw(
     data: str,
     block: str | int = "latest",
 ) -> bytes | None:
-    params = build_eth_call_params(to_address=to_address, data=data, block=block)
-    payload = build_json_rpc_payload(method="eth_call", params=params)
+    params = build_eth_call_params(
+        to_address=to_address,
+        data=data,
+        block=block,
+    )
 
-    resp = requests.post(rpc_url, json=payload, timeout=30)
-    resp.raiseresp = resp.json()
-    if "error" in resp:
-        raise RuntimeError(resp["error"])
+    payload = build_json_rpc_payload(
+        method="eth_call",
+        params=params,
+    )
 
-    raw_hex = resp.get("result")
+    response = requests.post(rpc_url, json=payload, timeout=30)
+    response.raise_for_status()
+
+    result = response.json()   # ✅ convert to dict
+
+    if "error" in result:
+        raise RuntimeError(result["error"])
+
+    raw_hex = result.get("result")
+
+    # "0x" means empty return data
     if raw_hex in (None, "0x"):
         return None
 
-    # hex string -> bytes
+    # strip 0x and convert to bytes
     return bytes.fromhex(raw_hex[2:])
+
 
 
 def execute_eth_call_uint(
