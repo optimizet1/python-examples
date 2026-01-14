@@ -447,17 +447,12 @@ def get_token_metadata(
     Returns token metadata (decimals, symbol) for an ERC-20 token.
     Cached per (chain, token).
 
-    Output:
-    {
-        "decimals": 18,
-        "symbol": "USDT"
-    }
+    Handles both string and bytes32 symbol() implementations.
     """
 
     chain = chain.lower()
     token_key = token_address.lower()
 
-    # Ensure chain bucket exists
     DECIMALS_CACHE.setdefault(chain, {})
 
     # Cache hit
@@ -476,6 +471,7 @@ def get_token_metadata(
         return None
 
     # --- symbol ---
+    symbol = None
     symbol_raw = execute_eth_call(
         rpc_url=rpc_url,
         to_address=token_address,
@@ -483,23 +479,33 @@ def get_token_metadata(
         block="latest",
     )
 
-    # symbol() may return bytes32 or string depending on token
-    symbol = None
-    if isinstance(symbol_raw, int):
-        # bytes32 encoded as int (rare but happens)
-        symbol = bytes.fromhex(hex(symbol_raw)[2:]).rstrip(b"\x00").decode("utf-8", errors="ignore")
-    elif isinstance(symbol_raw, str):
-        symbol = symbol_raw
+    if symbol_raw is not None:
+        if isinstance(symbol_raw, int):
+            # bytes32 → int → 32 bytes → strip nulls
+            try:
+                symbol_bytes = symbol_raw.to_bytes(32, byteorder="big")
+                symbol = (
+                    symbol_bytes
+                    .rstrip(b"\x00")
+                    .decode("utf-8", errors="ignore")
+                )
+            except Exception:
+                symbol = None
+
+        elif isinstance(symbol_raw, str):
+            # Already decoded string
+            symbol = symbol_raw.strip()
 
     metadata = {
         "decimals": decimals,
         "symbol": symbol,
     }
 
-    # Cache it
+    # Cache it (immutable metadata)
     DECIMALS_CACHE[chain][token_key] = metadata
 
     return metadata
+
 
 def get_bsc_tokens_metadata(
     rpc_url: str,
