@@ -167,3 +167,25 @@ supply_at_block = get_total_supply_raw(
 
 print("Raw totalSupply at block:", supply_at_block)
 
+# -----------------------------------
+# get decimal for token
+
+
+def get_token_decimals_raw(
+    rpc_url: str,
+    token_address: str,
+    block: str | int = "latest",
+) -> int | None:
+    DECIMALS_SELECTOR = "0x313ce567"
+
+    value = execute_eth_call(
+        rpc_url=rpc_url,
+        to_address=token_address,
+        data=DECIMALS_SELECTOR,
+        block=block,
+    )
+
+    if value is None:
+        return None
+
+    return value  # already an int

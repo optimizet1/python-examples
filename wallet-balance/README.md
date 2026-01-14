@@ -100,3 +100,15 @@ price
 normalization method
 
 This is what professional analytics pipelines do.
+
+
+# Keccak256
+
+| Function             | Signature              | Selector     |
+| -------------------- | ---------------------- | ------------ |
+| `totalSupply()`      | `"totalSupply()"`      | `0x18160ddd` |
+| `balanceOf(address)` | `"balanceOf(address)"` | `0x70a08231` |
+| `decimals()`         | `"decimals()"`         | `0x313ce567` |
+| `symbol()`           | `"symbol()"`           | `0x95d89b41` |
+
+
